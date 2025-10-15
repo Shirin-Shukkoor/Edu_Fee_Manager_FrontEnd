@@ -1,38 +1,29 @@
 import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardContent, CardTitle, LoadingSpinner } from '../../components/ui';
-import { courseService, studentService, feeService } from '../../services';
+import { dashboardService, feeService } from '../../services';
 
 const Dashboard = () => {
-  const [stats, setStats] = useState({
-    courses: {},
-    students: {},
-    fees: {},
-    payments: {},
-  });
+  const [stats, setStats] = useState({});
+  const [upcomingDues, setUpcomingDues] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('all');
 
   useEffect(() => {
-    fetchDashboardStats();
-  }, []);
+    fetchDashboardData();
+  }, [filter]);
 
-  const fetchDashboardStats = async () => {
+  const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const [courseStats, studentStats, feeStats, paymentStats] = await Promise.all([
-        courseService.getStatistics(),
-        studentService.getStatistics(),
-        feeService.getFeeManagementStatistics(),
-        feeService.getPaymentStatistics(),
+      const [dashboardStats, upcomingDuesData] = await Promise.all([
+        dashboardService.getStatistics(filter),
+        dashboardService.getUpcomingDues(),
       ]);
       
-      setStats({
-        courses: courseStats.data.statistics,
-        students: studentStats.data.statistics,
-        fees: feeStats.data.statistics,
-        payments: paymentStats.data.statistics,
-      });
+      setStats(dashboardStats.data.statistics);
+      setUpcomingDues(upcomingDuesData.data.upcoming_dues || []);
     } catch (error) {
-      console.error('Error fetching dashboard stats:', error);
+      console.error('Error fetching dashboard data:', error);
     } finally {
       setLoading(false);
     }
@@ -41,27 +32,50 @@ const Dashboard = () => {
   if (loading) return <LoadingSpinner size="lg" className="py-8" />;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <div className="text-sm text-gray-500">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Dashboard</h1>
+        <div className="text-xs sm:text-sm text-gray-500">
+          {stats.filter_applied && `Filter: ${stats.filter_applied} | `}
           Last updated: {new Date().toLocaleString()}
         </div>
       </div>
 
+      {/* Filter Buttons */}
+      <div className="flex flex-wrap gap-2 mb-4 sm:mb-6">
+        <button
+          onClick={() => setFilter('all')}
+          className={`px-3 sm:px-4 py-2 text-sm rounded-lg ${filter === 'all' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}
+        >
+          All Time
+        </button>
+        <button
+          onClick={() => setFilter('month')}
+          className={`px-3 sm:px-4 py-2 text-sm rounded-lg ${filter === 'month' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}
+        >
+          This Month
+        </button>
+        <button
+          onClick={() => setFilter('week')}
+          className={`px-3 sm:px-4 py-2 text-sm rounded-lg ${filter === 'week' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700'}`}
+        >
+          This Week
+        </button>
+      </div>
+
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center">
               <div className="p-2 bg-blue-100 rounded-lg">
                 <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
                 </svg>
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total Courses</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.courses.total_courses || 0}</p>
+                <p className="text-sm font-medium text-gray-600">Total Students</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.fee_management?.total_students || 0}</p>
               </div>
             </div>
           </CardContent>
@@ -72,12 +86,12 @@ const Dashboard = () => {
             <div className="flex items-center">
               <div className="p-2 bg-green-100 rounded-lg">
                 <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
                 </svg>
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Active Students</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.students.active_students || 0}</p>
+                <p className="text-sm font-medium text-gray-600">Total Collected</p>
+                <p className="text-2xl font-bold text-gray-900">₹{stats.payments?.total_collected || 0}</p>
               </div>
             </div>
           </CardContent>
@@ -92,8 +106,8 @@ const Dashboard = () => {
                 </svg>
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total Revenue</p>
-                <p className="text-2xl font-bold text-gray-900">₹{stats.fees.net_revenue || 0}</p>
+                <p className="text-sm font-medium text-gray-600">Pending Amount</p>
+                <p className="text-2xl font-bold text-gray-900">₹{stats.payments?.pending_amount || 0}</p>
               </div>
             </div>
           </CardContent>
@@ -108,8 +122,8 @@ const Dashboard = () => {
                 </svg>
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Collected Today</p>
-                <p className="text-2xl font-bold text-gray-900">₹{stats.payments.amount_collected_today || 0}</p>
+                <p className="text-sm font-medium text-gray-600">Total Payments</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.payments?.total_payments || 0}</p>
               </div>
             </div>
           </CardContent>
@@ -117,14 +131,14 @@ const Dashboard = () => {
       </div>
 
       {/* Charts and Recent Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-6">
         <Card>
           <CardHeader>
             <CardTitle>Payment Status Overview</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {stats.fees.payment_status_breakdown && Object.entries(stats.fees.payment_status_breakdown).map(([status, count]) => (
+              {stats.payment_status_breakdown && Object.entries(stats.payment_status_breakdown).map(([status, count]) => (
                 <div key={status} className="flex items-center justify-between">
                   <span className="text-sm font-medium text-gray-600">{status}</span>
                   <span className="text-sm font-bold text-gray-900">{count}</span>
@@ -140,7 +154,7 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {stats.payments.recent_payments?.slice(0, 5).map((payment) => (
+              {stats.recent_payments?.slice(0, 5).map((payment) => (
                 <div key={payment.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-b-0">
                   <div>
                     <p className="text-sm font-medium text-gray-900">{payment.student_name}</p>
@@ -150,6 +164,27 @@ const Dashboard = () => {
                     <p className="text-sm font-bold text-green-600">₹{payment.amount_paid}</p>
                     <p className="text-xs text-gray-500">{new Date(payment.payment_date).toLocaleDateString()}</p>
                   </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Upcoming Due Dates</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {upcomingDues.slice(0, 5).map((due, index) => (
+                <div key={index} className="py-2 border-b border-gray-100 last:border-b-0">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium text-gray-900">
+                      {new Date(due.due_date).toLocaleDateString()}
+                    </span>
+                    <span className="text-sm font-bold text-red-600">₹{due.total_amount}</span>
+                  </div>
+                  <p className="text-xs text-gray-500">{due.installments_count} installments due</p>
                 </div>
               ))}
             </div>

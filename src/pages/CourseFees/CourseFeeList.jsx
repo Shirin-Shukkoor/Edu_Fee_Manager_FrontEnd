@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardHeader, CardContent, CardTitle, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Badge, Pagination, LoadingSpinner, Modal } from '../../components/ui';
 import { feeService, courseService } from '../../services';
 import CourseFeeForm from '../../components/forms/CourseFeeForm';
@@ -10,6 +10,12 @@ const CourseFeeList = () => {
   const [pagination, setPagination] = useState({});
   const [showModal, setShowModal] = useState(false);
   const [filters, setFilters] = useState({ page: 1 });
+  const [searchValue, setSearchValue] = useState('');
+  const [selectedCourse, setSelectedCourse] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingFee, setEditingFee] = useState(null);
+  const [editFormData, setEditFormData] = useState({});
 
   useEffect(() => {
     fetchCourseFees();
@@ -42,30 +48,59 @@ const CourseFeeList = () => {
     }
   };
 
-  const handleSearch = (value) => {
-    if (value.trim()) {
-      setFilters({ ...filters, search: value, page: 1 });
-    } else {
-      const { search, ...rest } = filters;
-      setFilters(rest);
+  const handleSearch = useCallback((value) => {
+    setSearchValue(value);
+    setTimeout(() => {
+      setFilters(prev => ({ ...prev, search: value || undefined, page: 1 }));
+    }, 500);
+  }, []);
+
+  const handleCourseFilter = useCallback((value) => {
+    setSelectedCourse(value);
+    setFilters(prev => ({ ...prev, course: value || undefined, page: 1 }));
+  }, []);
+
+  const handleCategoryFilter = useCallback((value) => {
+    setSelectedCategory(value);
+    setFilters(prev => ({ ...prev, fee_category: value || undefined, page: 1 }));
+  }, []);
+
+  const clearAllFilters = useCallback(() => {
+    setSearchValue('');
+    setSelectedCourse('');
+    setSelectedCategory('');
+    setFilters({ page: 1 });
+  }, []);
+
+  const handleEdit = (fee) => {
+    setEditingFee(fee);
+    setEditFormData({
+      course: fee.course,
+      batch: fee.batch,
+      actual_fee: fee.actual_fee
+    });
+    setShowEditModal(true);
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await feeService.updateCourseFee(editingFee.id, editFormData);
+      setShowEditModal(false);
+      fetchCourseFees();
+    } catch (error) {
+      console.error('Error updating course fee:', error);
     }
   };
 
-  const handleCourseFilter = (value) => {
-    if (value) {
-      setFilters({ ...filters, course: value, page: 1 });
-    } else {
-      const { course, ...rest } = filters;
-      setFilters(rest);
-    }
-  };
-
-  const handleCategoryFilter = (value) => {
-    if (value) {
-      setFilters({ ...filters, fee_category: value, page: 1 });
-    } else {
-      const { fee_category, ...rest } = filters;
-      setFilters(rest);
+  const handleDelete = async (feeId) => {
+    if (window.confirm('Are you sure you want to delete this course fee?')) {
+      try {
+        await feeService.deleteCourseFee(feeId);
+        fetchCourseFees();
+      } catch (error) {
+        console.error('Error deleting course fee:', error);
+      }
     }
   };
 
@@ -103,11 +138,12 @@ const CourseFeeList = () => {
             <input
               type="text"
               placeholder="Search courses..."
-              onKeyPress={(e) => e.key === 'Enter' && handleSearch(e.target.value)}
-              onBlur={(e) => handleSearch(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={searchValue}
+              onChange={(e) => handleSearch(e.target.value)}
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <select
+              value={selectedCourse}
               onChange={(e) => handleCourseFilter(e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
@@ -119,6 +155,7 @@ const CourseFeeList = () => {
               ))}
             </select>
             <select
+              value={selectedCategory}
               onChange={(e) => handleCategoryFilter(e.target.value)}
               className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
@@ -126,6 +163,12 @@ const CourseFeeList = () => {
               <option value="expensive">Expensive (≥₹10,000)</option>
               <option value="affordable">Affordable (&lt;₹10,000)</option>
             </select>
+            <button
+              onClick={clearAllFilters}
+              className="px-4 py-2 text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200"
+            >
+              Clear All
+            </button>
           </div>
 
           <Table>
@@ -153,8 +196,18 @@ const CourseFeeList = () => {
                   <TableCell>{new Date(fee.created_at).toLocaleDateString()}</TableCell>
                   <TableCell>
                     <div className="flex space-x-2">
-                      <button className="text-blue-600 hover:text-blue-800 text-sm">Edit</button>
-                      <button className="text-red-600 hover:text-red-800 text-sm">Delete</button>
+                      <button 
+                        onClick={() => handleEdit(fee)}
+                        className="text-blue-600 hover:text-blue-800 text-sm"
+                      >
+                        Edit
+                      </button>
+                      <button 
+                        onClick={() => handleDelete(fee.id)}
+                        className="text-red-600 hover:text-red-800 text-sm"
+                      >
+                        Delete
+                      </button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -167,7 +220,7 @@ const CourseFeeList = () => {
               <Pagination
                 currentPage={pagination.current_page}
                 totalPages={pagination.total_pages}
-                onPageChange={(page) => setFilters({ ...filters, page })}
+                onPageChange={(page) => setFilters(prev => ({ ...prev, page }))}
               />
             </div>
           )}
@@ -184,6 +237,57 @@ const CourseFeeList = () => {
           onSubmit={handleCreateCourseFee}
           onCancel={() => setShowModal(false)}
         />
+      </Modal>
+
+      <Modal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        title="Edit Course Fee"
+        size="md"
+      >
+        <form onSubmit={handleEditSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Course</label>
+            <select
+              value={editFormData.course || ''}
+              onChange={(e) => setEditFormData(prev => ({ ...prev, course: e.target.value }))}
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+              required
+            >
+              <option value="">Select Course</option>
+              {courses.map(course => (
+                <option key={course.id} value={course.id}>{course.course_name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Fee Amount</label>
+            <input
+              type="number"
+              value={editFormData.actual_fee || ''}
+              onChange={(e) => setEditFormData(prev => ({ ...prev, actual_fee: e.target.value }))}
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+              min="0"
+              step="0.01"
+              required
+            />
+          </div>
+          <div className="flex justify-end space-x-3 pt-4">
+            <button
+              type="button"
+              onClick={() => setShowEditModal(false)}
+              className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            >
+              Update Fee
+            </button>
+          </div>
+        </form>
       </Modal>
     </div>
   );

@@ -34,7 +34,7 @@ const TableRow = ({ children, className = '' }) => {
 
 const TableHead = ({ children, className = '' }) => {
   return (
-    <th className={`px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${className}`}>
+    <th className={`px-2 sm:px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${className}`}>
       {children}
     </th>
   );
@@ -42,7 +42,7 @@ const TableHead = ({ children, className = '' }) => {
 
 const TableCell = ({ children, className = '' }) => {
   return (
-    <td className={`px-6 py-4 whitespace-nowrap text-sm text-gray-900 ${className}`}>
+    <td className={`px-2 sm:px-4 lg:px-6 py-2 sm:py-4 whitespace-nowrap text-xs sm:text-sm text-gray-900 ${className}`}>
       {children}
     </td>
   );

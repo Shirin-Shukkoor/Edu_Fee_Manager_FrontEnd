@@ -22,6 +22,7 @@ export const studentService = {
   // Get students by course/batch
   getStudentsByCourse: (courseId, params = {}) => api.get(`/courses/${courseId}/students/`, { params }),
   getStudentsByBatch: (batchId, params = {}) => api.get(`/batches/${batchId}/students/`, { params }),
+  getStudentsByCourseAndBatch: (courseId, batchId) => api.get('/students/by-course-batch/', { params: { course_id: courseId, batch_id: batchId } }),
   
   // Bulk operations
   bulkActivate: (studentIds) => api.post('/students/bulk-activate/', { student_ids: studentIds }),

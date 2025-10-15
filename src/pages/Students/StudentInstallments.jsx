@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Card, CardHeader, CardContent, CardTitle, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Badge, LoadingSpinner } from '../../components/ui';
+import { Card, CardHeader, CardContent, CardTitle, Table, TableHeader, TableBody, TableRow, TableHead, TableCell, Badge, LoadingSpinner, Pagination } from '../../components/ui';
 import { feeService, studentService } from '../../services';
 
 const StudentInstallments = () => {
@@ -9,10 +9,12 @@ const StudentInstallments = () => {
   const [feeRecord, setFeeRecord] = useState(null);
   const [installments, setInstallments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [pagination, setPagination] = useState({});
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     fetchStudentData();
-  }, [studentId]);
+  }, [studentId, page]);
 
   const fetchStudentData = async () => {
     try {
@@ -28,8 +30,9 @@ const StudentInstallments = () => {
         setFeeRecord(feeResponse.data.data);
         
         // Fetch installments
-        const installmentsResponse = await feeService.getFeeManagementInstallments(feeResponse.data.data.id);
+        const installmentsResponse = await feeService.getFeeManagementInstallments(feeResponse.data.data.id, { page });
         setInstallments(installmentsResponse.data.results);
+        setPagination(installmentsResponse.data.pagination);
       }
     } catch (error) {
       console.error('Error fetching student data:', error);
@@ -134,38 +137,50 @@ const StudentInstallments = () => {
         </CardHeader>
         <CardContent>
           {installments.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>#</TableHead>
-                  <TableHead>Due Date</TableHead>
-                  <TableHead>Amount Due</TableHead>
-                  <TableHead>Amount Paid</TableHead>
-                  <TableHead>Remaining</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Days Overdue</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {installments.map((installment) => (
-                  <TableRow key={installment.id}>
-                    <TableCell className="font-medium">{installment.installment_number}</TableCell>
-                    <TableCell>{new Date(installment.due_date).toLocaleDateString()}</TableCell>
-                    <TableCell>₹{installment.amount_due}</TableCell>
-                    <TableCell>₹{installment.amount_paid}</TableCell>
-                    <TableCell>₹{installment.remaining_amount}</TableCell>
-                    <TableCell>{getStatusBadge(installment.status)}</TableCell>
-                    <TableCell>
-                      {installment.days_overdue > 0 ? (
-                        <span className="text-red-600 font-medium">{installment.days_overdue} days</span>
-                      ) : (
-                        <span className="text-gray-400">-</span>
-                      )}
-                    </TableCell>
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>#</TableHead>
+                    <TableHead>Due Date</TableHead>
+                    <TableHead>Amount Due</TableHead>
+                    <TableHead>Amount Paid</TableHead>
+                    <TableHead>Remaining</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Days Overdue</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {installments.map((installment) => (
+                    <TableRow key={installment.id}>
+                      <TableCell className="font-medium">{installment.installment_number}</TableCell>
+                      <TableCell>{new Date(installment.due_date).toLocaleDateString()}</TableCell>
+                      <TableCell>₹{installment.amount_due}</TableCell>
+                      <TableCell>₹{installment.amount_paid}</TableCell>
+                      <TableCell>₹{installment.remaining_amount}</TableCell>
+                      <TableCell>{getStatusBadge(installment.status)}</TableCell>
+                      <TableCell>
+                        {installment.days_overdue > 0 ? (
+                          <span className="text-red-600 font-medium">{installment.days_overdue} days</span>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              
+              {pagination.total_pages > 1 && (
+                <div className="mt-6">
+                  <Pagination
+                    currentPage={pagination.current_page}
+                    totalPages={pagination.total_pages}
+                    onPageChange={setPage}
+                  />
+                </div>
+              )}
+            </>
           ) : (
             <div className="text-center py-8">
               <p className="text-gray-500">

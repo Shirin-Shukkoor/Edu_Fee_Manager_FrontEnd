@@ -1,12 +1,29 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { authService } from '../services';
+import { authService, dashboardService } from '../services';
 
 const Header = () => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [notificationCount, setNotificationCount] = useState(0);
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+  useEffect(() => {
+    fetchTodayNotifications();
+  }, []);
+
+  const fetchTodayNotifications = async () => {
+    try {
+      const response = await dashboardService.getTodayNotifications();
+      const todayDues = response.data.notifications || [];
+      setNotifications(todayDues);
+      setNotificationCount(todayDues.length);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    }
+  };
 
   const handleLogout = async () => {
     try {
@@ -20,38 +37,14 @@ const Header = () => {
     }
   };
 
-  const notifications = [
-    { id: 1, message: 'New payment received from John Doe', time: '2 min ago', type: 'payment' },
-    { id: 2, message: 'Fee reminder sent to 5 students', time: '1 hour ago', type: 'reminder' },
-    { id: 3, message: 'Monthly report generated', time: '2 hours ago', type: 'report' },
-  ];
+
 
   return (
     <header className="bg-white shadow-sm border-b border-gray-200">
       <div className="flex items-center justify-between px-6 py-4">
-        {/* Search Bar */}
-        <div className="flex-1 max-w-md">
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-            </div>
-            <input
-              type="text"
-              placeholder="Search students, payments..."
-              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-        </div>
-
+        <div></div>
         {/* Right Side Actions */}
         <div className="flex items-center space-x-4">
-          {/* Quick Actions */}
-          <button className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition-colors">
-            Add Payment
-          </button>
-
           {/* Notifications */}
           <div className="relative">
             <button
@@ -61,29 +54,48 @@ const Header = () => {
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-5 5v-5zM11 19H6.5A2.5 2.5 0 014 16.5v-9A2.5 2.5 0 016.5 5h11A2.5 2.5 0 0120 7.5v3.5" />
               </svg>
-              <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-400"></span>
+              {notificationCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                  {notificationCount}
+                </span>
+              )}
             </button>
 
             {showNotifications && (
               <div className="absolute right-0 mt-2 w-80 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 z-50">
                 <div className="p-4">
-                  <h3 className="text-lg font-medium text-gray-900 mb-3">Notifications</h3>
-                  <div className="space-y-3">
-                    {notifications.map((notification) => (
-                      <div key={notification.id} className="flex items-start space-x-3 p-2 hover:bg-gray-50 rounded-md">
-                        <div className="flex-shrink-0">
-                          <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-3">Today's Due Payments</h3>
+                  <div className="space-y-3 max-h-64 overflow-y-auto">
+                    {notifications.length > 0 ? (
+                      notifications.map((notification) => (
+                        <div key={notification.id} className="flex items-start space-x-3 p-2 hover:bg-gray-50 rounded-md cursor-pointer"
+                             onClick={() => navigate(`/students/${notification.student_id}/installments`)}>
+                          <div className="flex-shrink-0">
+                            <div className="w-2 h-2 bg-red-500 rounded-full mt-2"></div>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900">{notification.student_name}</p>
+                            <p className="text-xs text-gray-600">{notification.student_code} • {notification.course_name}</p>
+                            <p className="text-xs text-red-600 font-medium">₹{notification.due_amount} due today</p>
+                          </div>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-gray-900">{notification.message}</p>
-                          <p className="text-xs text-gray-500">{notification.time}</p>
-                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-4">
+                        <p className="text-sm text-gray-500">No payments due today</p>
                       </div>
-                    ))}
+                    )}
                   </div>
-                  <div className="mt-3 pt-3 border-t border-gray-200">
-                    <button className="text-sm text-blue-600 hover:text-blue-800">View all notifications</button>
-                  </div>
+                  {notifications.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-gray-200">
+                      <button 
+                        onClick={() => navigate('/fee-management/pending')}
+                        className="text-sm text-blue-600 hover:text-blue-800"
+                      >
+                        View all pending payments
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

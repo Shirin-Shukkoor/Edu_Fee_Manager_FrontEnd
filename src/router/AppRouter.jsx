@@ -15,6 +15,7 @@ import PaymentList from '../pages/Payments/PaymentList';
 import CourseFeeList from '../pages/CourseFees/CourseFeeList';
 import StudentInstallments from '../pages/Students/StudentInstallments';
 import PendingPayments from '../pages/FeeManagement/PendingPayments';
+import FineManagement from '../components/FineManagement';
 
 const AppRouter = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('authToken'));
@@ -61,6 +62,9 @@ const AppRouter = () => {
             
             {/* Course Fees Routes */}
             <Route path="course-fees" element={<CourseFeeList />} />
+            
+            {/* Fine Management Routes */}
+            <Route path="fine-management" element={<FineManagement />} />
           </Route>
         ) : (
           <Route path="*" element={<Navigate to="/login" replace />} />
