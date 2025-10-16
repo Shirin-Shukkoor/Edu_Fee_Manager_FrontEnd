@@ -60,14 +60,13 @@ const CreateBatch = () => {
             </div>
 
             <div>
-              <label className="form-label">Start Date *</label>
+              <label className="form-label">Start Date</label>
               <input
                 type="date"
                 name="start_date"
                 value={formData.start_date}
                 onChange={handleChange}
                 className="form-input"
-                required
               />
               {errors.start_date && <p className="form-error">{errors.start_date[0]}</p>}
             </div>

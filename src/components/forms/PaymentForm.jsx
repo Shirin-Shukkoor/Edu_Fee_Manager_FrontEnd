@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
-import { studentService, feeService } from '../../services';
+import SearchableDropdown from '../ui/SearchableDropdown';
+import { studentService, feeService, courseService, batchService } from '../../services';
 
 const PaymentForm = ({ onSubmit, onCancel, initialData = null }) => {
   const [formData, setFormData] = useState({
+    course: '',
+    batch: '',
     student: '',
     installment: '',
     amount_paid: '',
@@ -10,17 +13,38 @@ const PaymentForm = ({ onSubmit, onCancel, initialData = null }) => {
     payment_date: new Date().toISOString().split('T')[0],
     notes: '',
   });
+  const [courses, setCourses] = useState([]);
+  const [batches, setBatches] = useState([]);
   const [students, setStudents] = useState([]);
   const [installments, setInstallments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
-    fetchStudents();
+    fetchCourses();
     if (initialData) {
       setFormData(initialData);
     }
   }, [initialData]);
+
+  useEffect(() => {
+    if (formData.course) {
+      fetchBatches();
+    } else {
+      setBatches([]);
+      setStudents([]);
+      setFormData(prev => ({ ...prev, batch: '', student: '' }));
+    }
+  }, [formData.course]);
+
+  useEffect(() => {
+    if (formData.course && formData.batch) {
+      fetchStudents();
+    } else {
+      setStudents([]);
+      setFormData(prev => ({ ...prev, student: '' }));
+    }
+  }, [formData.course, formData.batch]);
 
   useEffect(() => {
     if (formData.student) {
@@ -28,9 +52,27 @@ const PaymentForm = ({ onSubmit, onCancel, initialData = null }) => {
     }
   }, [formData.student]);
 
+  const fetchCourses = async () => {
+    try {
+      const response = await courseService.getActiveCourses({ no_pagination: true });
+      setCourses(response.data.results);
+    } catch (error) {
+      console.error('Error fetching courses:', error);
+    }
+  };
+
+  const fetchBatches = async () => {
+    try {
+      const response = await batchService.getActiveBatches({ course: formData.course, no_pagination: true });
+      setBatches(response.data.results);
+    } catch (error) {
+      console.error('Error fetching batches:', error);
+    }
+  };
+
   const fetchStudents = async () => {
     try {
-      const response = await studentService.getActiveStudents({ no_pagination: true });
+      const response = await studentService.getStudentsByCourseAndBatch(formData.course, formData.batch);
       setStudents(response.data.results);
     } catch (error) {
       console.error('Error fetching students:', error);
@@ -86,21 +128,46 @@ const PaymentForm = ({ onSubmit, onCancel, initialData = null }) => {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
+        <label className="form-label">Course *</label>
+        <SearchableDropdown
+          options={courses.map(course => ({ value: course.id, label: course.course_name }))}
+          value={formData.course}
+          onChange={(value) => setFormData(prev => ({ ...prev, course: value, batch: '', student: '' }))}
+          placeholder="Select Course"
+          searchPlaceholder="Search courses..."
+          className="w-full"
+        />
+        {errors.course && <p className="form-error">{errors.course[0]}</p>}
+      </div>
+
+      <div>
+        <label className="form-label">Batch *</label>
+        <SearchableDropdown
+          options={batches.map(batch => ({ value: batch.id, label: batch.batch_name }))}
+          value={formData.batch}
+          onChange={(value) => setFormData(prev => ({ ...prev, batch: value, student: '' }))}
+          placeholder={!formData.course ? 'Select Course first' : 'Select Batch'}
+          searchPlaceholder="Search batches..."
+          disabled={!formData.course}
+          className="w-full"
+        />
+        {errors.batch && <p className="form-error">{errors.batch[0]}</p>}
+      </div>
+
+      <div>
         <label className="form-label">Student *</label>
-        <select
-          name="student"
+        <SearchableDropdown
+          options={students.map(student => ({ 
+            value: student.id, 
+            label: `${student.full_name} (${student.student_id})` 
+          }))}
           value={formData.student}
-          onChange={handleChange}
-          className="form-select"
-          required
-        >
-          <option value="">Select Student</option>
-          {students.map((student) => (
-            <option key={student.id} value={student.id}>
-              {student.full_name} ({student.student_id})
-            </option>
-          ))}
-        </select>
+          onChange={(value) => setFormData(prev => ({ ...prev, student: value }))}
+          placeholder={!formData.course || !formData.batch ? 'Select Course and Batch first' : 'Select Student'}
+          searchPlaceholder="Search students..."
+          disabled={!formData.course || !formData.batch}
+          className="w-full"
+        />
         {errors.student && <p className="form-error">{errors.student[0]}</p>}
       </div>
 
