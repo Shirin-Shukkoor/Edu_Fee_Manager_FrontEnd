@@ -1,0 +1,31 @@
+# Enforce consistent line endings
+# Treat all text files as LF in the repository. This protects against CRLF/LF mismatches.
+* text=auto eol=lf
+
+# Force specific extensions to be treated as text and normalized to LF
+*.js     text eol=lf
+*.jsx    text eol=lf
+*.ts     text eol=lf
+*.tsx    text eol=lf
+*.css    text eol=lf
+*.html   text eol=lf
+*.json   text eol=lf
+*.md     text eol=lf
+*.yml    text eol=lf
+*.yaml   text eol=lf
+
+# SVG files can contain text but may be large; keep as binary to avoid transformations
+*.svg    binary
+
+# Images and other binary formats
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.gif    binary
+*.ico    binary
+*.pdf    binary
+
+# Prevent CRLF normalization for files that must keep exact bytes (lockfiles, packages)
+package-lock.json  -text
+
+# End of .gitattributes

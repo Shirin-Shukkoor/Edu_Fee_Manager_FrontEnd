@@ -9,6 +9,10 @@ const FeeManagementForm = ({ onSubmit, onCancel, initialData = null }) => {
     student: '',
     amount: '',
     discount: '0',
+    registration_fee: '0',
+    registration_payment_mode: 'CASH',
+    registration_payment_date: '',
+    registration_payment_notes: '',
     is_quickpay: false,
     instalment_duration: '',
   });
@@ -157,6 +161,62 @@ const FeeManagementForm = ({ onSubmit, onCancel, initialData = null }) => {
         />
         {errors.amount && <p className="form-error">{errors.amount[0]}</p>}
       </div>
+
+      <div>
+        <label className="form-label">Registration Fee</label>
+        <input
+          type="number"
+          name="registration_fee"
+          value={formData.registration_fee}
+          onChange={handleChange}
+          className="form-input"
+          placeholder="0.00"
+          step="0.01"
+          min="0"
+        />
+        {errors.registration_fee && <p className="form-error">{errors.registration_fee[0]}</p>}
+      </div>
+
+      <div>
+        <label className="form-label">Registration Payment Mode</label>
+        <select
+          name="registration_payment_mode"
+          value={formData.registration_payment_mode}
+          onChange={handleChange}
+          className="form-input"
+        >
+          <option value="CASH">Cash</option>
+          <option value="ONLINE">Online</option>
+          <option value="CHEQUE">Cheque</option>
+          <option value="CARD">Card</option>
+          <option value="UPI">UPI</option>
+          <option value="BANK_TRANSFER">Bank Transfer</option>
+        </select>
+      </div>
+
+      <div>
+        <label className="form-label">Registration Payment Date</label>
+        <input
+          type="date"
+          name="registration_payment_date"
+          value={formData.registration_payment_date}
+          onChange={handleChange}
+          className="form-input"
+        />
+      </div>
+
+      <div>
+        <label className="form-label">Registration Payment Notes</label>
+        <textarea
+          name="registration_payment_notes"
+          value={formData.registration_payment_notes}
+          onChange={handleChange}
+          className="form-input"
+          rows={2}
+        />
+      </div>
+
+      {/* quick_payment_amount removed: quick payments are handled via Payment API and only controlled by is_quickpay */}
 
       <div>
         <label className="form-label">Discount Amount</label>

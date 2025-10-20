@@ -1,78 +1,38 @@
 import { useState, useEffect } from 'react';
 import SearchableDropdown from '../ui/SearchableDropdown';
-import { studentService, feeService, courseService, batchService } from '../../services';
+import { studentService, feeService } from '../../services';
 
 const PaymentForm = ({ onSubmit, onCancel, initialData = null }) => {
   const [formData, setFormData] = useState({
-    course: '',
-    batch: '',
     student: '',
     installment: '',
     amount_paid: '',
     payment_mode: 'CASH',
     payment_date: new Date().toISOString().split('T')[0],
+    payment_type: 'INSTALLMENT',
     notes: '',
   });
-  const [courses, setCourses] = useState([]);
-  const [batches, setBatches] = useState([]);
   const [students, setStudents] = useState([]);
   const [installments, setInstallments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
-    fetchCourses();
+    fetchStudents();
     if (initialData) {
       setFormData(initialData);
     }
   }, [initialData]);
 
   useEffect(() => {
-    if (formData.course) {
-      fetchBatches();
-    } else {
-      setBatches([]);
-      setStudents([]);
-      setFormData(prev => ({ ...prev, batch: '', student: '' }));
-    }
-  }, [formData.course]);
-
-  useEffect(() => {
-    if (formData.course && formData.batch) {
-      fetchStudents();
-    } else {
-      setStudents([]);
-      setFormData(prev => ({ ...prev, student: '' }));
-    }
-  }, [formData.course, formData.batch]);
-
-  useEffect(() => {
-    if (formData.student) {
+    if (formData.student && formData.payment_type === 'INSTALLMENT') {
       fetchStudentInstallments();
     }
-  }, [formData.student]);
-
-  const fetchCourses = async () => {
-    try {
-      const response = await courseService.getActiveCourses({ no_pagination: true });
-      setCourses(response.data.results);
-    } catch (error) {
-      console.error('Error fetching courses:', error);
-    }
-  };
-
-  const fetchBatches = async () => {
-    try {
-      const response = await batchService.getActiveBatches({ course: formData.course, no_pagination: true });
-      setBatches(response.data.results);
-    } catch (error) {
-      console.error('Error fetching batches:', error);
-    }
-  };
+  }, [formData.student, formData.payment_type]);
 
   const fetchStudents = async () => {
     try {
-      const response = await studentService.getStudentsByCourseAndBatch(formData.course, formData.batch);
+      const response = await studentService.getActiveStudents({ no_pagination: true });
       setStudents(response.data.results);
     } catch (error) {
       console.error('Error fetching students:', error);
@@ -101,7 +61,14 @@ const PaymentForm = ({ onSubmit, onCancel, initialData = null }) => {
     setErrors({});
 
     try {
-      await onSubmit(formData);
+      const submitData = { ...formData };
+      
+      // Remove installment field for non-installment payments
+      if (formData.payment_type !== 'INSTALLMENT') {
+        delete submitData.installment;
+      }
+
+      await onSubmit(submitData);
     } catch (error) {
       if (error.response?.data?.errors) {
         setErrors(error.response.data.errors);
@@ -125,33 +92,30 @@ const PaymentForm = ({ onSubmit, onCancel, initialData = null }) => {
     { value: 'BANK_TRANSFER', label: 'Bank Transfer' },
   ];
 
+  const paymentTypes = [
+    { value: 'INSTALLMENT', label: 'Installment Payment' },
+    { value: 'QUICK_PAY', label: 'Quick Payment' },
+    { value: 'REGISTRATION_FEE', label: 'Registration Fee' },
+  ];
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="form-label">Course *</label>
-        <SearchableDropdown
-          options={courses.map(course => ({ value: course.id, label: course.course_name }))}
-          value={formData.course}
-          onChange={(value) => setFormData(prev => ({ ...prev, course: value, batch: '', student: '' }))}
-          placeholder="Select Course"
-          searchPlaceholder="Search courses..."
-          className="w-full"
-        />
-        {errors.course && <p className="form-error">{errors.course[0]}</p>}
-      </div>
-
-      <div>
-        <label className="form-label">Batch *</label>
-        <SearchableDropdown
-          options={batches.map(batch => ({ value: batch.id, label: batch.batch_name }))}
-          value={formData.batch}
-          onChange={(value) => setFormData(prev => ({ ...prev, batch: value, student: '' }))}
-          placeholder={!formData.course ? 'Select Course first' : 'Select Batch'}
-          searchPlaceholder="Search batches..."
-          disabled={!formData.course}
-          className="w-full"
-        />
-        {errors.batch && <p className="form-error">{errors.batch[0]}</p>}
+        <label className="form-label">Payment Type *</label>
+        <select
+          name="payment_type"
+          value={formData.payment_type}
+          onChange={handleChange}
+          className="form-select"
+          required
+        >
+          {paymentTypes.map((type) => (
+            <option key={type.value} value={type.value}>
+              {type.label}
+            </option>
+          ))}
+        </select>
+        {errors.payment_type && <p className="form-error">{errors.payment_type[0]}</p>}
       </div>
 
       <div>
@@ -162,34 +126,38 @@ const PaymentForm = ({ onSubmit, onCancel, initialData = null }) => {
             label: `${student.full_name} (${student.student_id})` 
           }))}
           value={formData.student}
-          onChange={(value) => setFormData(prev => ({ ...prev, student: value }))}
-          placeholder={!formData.course || !formData.batch ? 'Select Course and Batch first' : 'Select Student'}
+          onChange={(value) => setFormData(prev => ({ ...prev, student: value, installment: '' }))}
+          placeholder="Select Student"
           searchPlaceholder="Search students..."
-          disabled={!formData.course || !formData.batch}
           className="w-full"
         />
         {errors.student && <p className="form-error">{errors.student[0]}</p>}
       </div>
 
-      <div>
-        <label className="form-label">Installment *</label>
-        <select
-          name="installment"
-          value={formData.installment}
-          onChange={handleChange}
-          className="form-select"
-          required
-          disabled={!formData.student}
-        >
-          <option value="">Select Installment</option>
-          {installments.map((installment) => (
-            <option key={installment.id} value={installment.id}>
-              Installment #{installment.installment_number} - Due: {installment.due_date} - Amount: ₹{installment.amount_due}
-            </option>
-          ))}
-        </select>
-        {errors.installment && <p className="form-error">{errors.installment[0]}</p>}
-      </div>
+      {formData.payment_type === 'INSTALLMENT' && (
+        <div>
+          <label className="form-label">Installment *</label>
+          <select
+            name="installment"
+            value={formData.installment}
+            onChange={handleChange}
+            className="form-select"
+            required={formData.payment_type === 'INSTALLMENT'}
+            disabled={!formData.student}
+          >
+            <option value="">Select Installment</option>
+            {installments.map((installment) => (
+              <option key={installment.id} value={installment.id}>
+                Installment #{installment.installment_number} - Due: {installment.due_date} - Amount: ₹{installment.amount_due}
+              </option>
+            ))}
+          </select>
+          {!formData.student && (
+            <p className="text-sm text-gray-500 mt-1">Select a student first</p>
+          )}
+          {errors.installment && <p className="form-error">{errors.installment[0]}</p>}
+        </div>
+      )}
 
       <div>
         <label className="form-label">Amount Paid *</label>

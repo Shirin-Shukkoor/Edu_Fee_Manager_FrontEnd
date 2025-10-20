@@ -65,9 +65,27 @@ const FeeManagementList = () => {
 
   const handleCreateFeeRecord = async (feeData) => {
     try {
-      await feeService.createFeeManagement(feeData);
+      const response = await feeService.createFeeManagement(feeData);
+      const createdFee = response.data;
+
+      // If quick payment requested, create a quick payment for the full net amount
+      if (feeData.is_quickpay) {
+        const amountForPayment = parseFloat(createdFee.net_amount || createdFee.amount || 0);
+        try {
+          await feeService.createPayment({
+            student: createdFee.student,
+            payment_type: 'QUICK_PAYMENT',
+            amount_paid: amountForPayment,
+            payment_mode: 'CASH',
+          });
+        } catch (err) {
+          console.error('Error creating quick payment:', err);
+        }
+      }
+
       setShowModal(false);
       fetchFeeRecords();
+      return response;
     } catch (error) {
       throw error;
     }
@@ -205,6 +223,7 @@ const FeeManagementList = () => {
                 <TableHead>Student</TableHead>
                 <TableHead>Course</TableHead>
                 <TableHead>Amount</TableHead>
+                <TableHead>Registration Fee</TableHead>
                 <TableHead>Discount</TableHead>
                 <TableHead>Net Amount</TableHead>
                 <TableHead>Payment Type</TableHead>
@@ -228,6 +247,7 @@ const FeeManagementList = () => {
                     </div>
                   </TableCell>
                   <TableCell>₹{record.amount}</TableCell>
+                  <TableCell>₹{record.registration_fee || '0.00'}</TableCell>
                   <TableCell>₹{record.discount}</TableCell>
                   <TableCell className="font-medium">₹{record.net_amount}</TableCell>
                   <TableCell>{record.payment_type}</TableCell>
