@@ -15,7 +15,9 @@ const FeeManagementForm = ({ onSubmit, onCancel, initialData = null }) => {
     registration_payment_notes: '',
     is_quickpay: false,
     instalment_duration: '',
+    installment_dates: [],
   });
+
   const [courses, setCourses] = useState([]);
   const [batches, setBatches] = useState([]);
   const [students, setStudents] = useState([]);
@@ -75,13 +77,69 @@ const FeeManagementForm = ({ onSubmit, onCancel, initialData = null }) => {
     }
   };
 
+  const handleDurationChange = (value) => {
+    const duration = parseInt(value) || 0;
+    setFormData(prev => ({
+      ...prev,
+      instalment_duration: value,
+      installment_dates: duration > 0 ? Array(duration).fill('') : []
+    }));
+  };
+
+  const handleFirstDateChange = (date) => {
+    if (!date || !formData.instalment_duration) {
+      return;
+    }
+
+    const count = parseInt(formData.instalment_duration);
+    const dates = [];
+    const firstDate = new Date(date);
+
+    for (let i = 0; i < count; i++) {
+      const nextDate = new Date(firstDate);
+      nextDate.setMonth(firstDate.getMonth() + i);
+      const year = nextDate.getFullYear();
+      const month = String(nextDate.getMonth() + 1).padStart(2, '0');
+      const day = String(nextDate.getDate()).padStart(2, '0');
+      dates.push(`${year}-${month}-${day}`);
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      installment_dates: dates
+    }));
+  };
+
+  const handleCustomDateChange = (index, date) => {
+    const newDates = [...formData.installment_dates];
+    newDates[index] = date;
+    setFormData(prev => ({ ...prev, installment_dates: newDates }));
+  };
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    if (name === 'instalment_duration') {
+      handleDurationChange(value);
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: type === 'checkbox' ? checked : value
+      }));
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setErrors({});
 
     try {
-      await onSubmit(formData);
+      const payload = {
+        ...formData,
+        instalment_duration: formData.is_quickpay ? null : formData.instalment_duration
+      };
+
+      await onSubmit(payload);
     } catch (error) {
       if (error.response?.data?.errors) {
         setErrors(error.response.data.errors);
@@ -89,14 +147,6 @@ const FeeManagementForm = ({ onSubmit, onCancel, initialData = null }) => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
   };
 
   return (
@@ -216,8 +266,6 @@ const FeeManagementForm = ({ onSubmit, onCancel, initialData = null }) => {
         />
       </div>
 
-      {/* quick_payment_amount removed: quick payments are handled via Payment API and only controlled by is_quickpay */}
-
       <div>
         <label className="form-label">Discount Amount</label>
         <input
@@ -245,19 +293,40 @@ const FeeManagementForm = ({ onSubmit, onCancel, initialData = null }) => {
       </div>
 
       {!formData.is_quickpay && (
-        <div>
-          <label className="form-label">Installment Duration (months) *</label>
-          <input
-            type="number"
-            name="instalment_duration"
-            value={formData.instalment_duration}
-            onChange={handleChange}
-            className="form-input"
-            min="1"
-            max="60"
-            required={!formData.is_quickpay}
-          />
-          {errors.instalment_duration && <p className="form-error">{errors.instalment_duration[0]}</p>}
+        <div className="space-y-3">
+          <div>
+            <label className="form-label">Installment Duration (months) *</label>
+            <input
+              type="number"
+              name="instalment_duration"
+              value={formData.instalment_duration}
+              onChange={(e) => handleDurationChange(e.target.value)}
+              className="form-input"
+              min="1"
+              max="60"
+              required={!formData.is_quickpay}
+            />
+            {errors.instalment_duration && <p className="form-error">{errors.instalment_duration[0]}</p>}
+          </div>
+
+          {formData.installment_dates.length > 0 && (
+            <div className="space-y-2">
+              <label className="form-label">Installment Due Dates</label>
+              {formData.installment_dates.map((date, index) => (
+                <input
+                  key={index}
+                  type="date"
+                  value={date}
+                  onChange={(e) => index === 0 
+                    ? handleFirstDateChange(e.target.value)
+                    : handleCustomDateChange(index, e.target.value)
+                  }
+                  className="form-input block"
+                  required={!formData.is_quickpay}
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
 
